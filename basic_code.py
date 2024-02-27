@@ -1,11 +1,12 @@
 from random import randrange
-from config import comm_token, user_token
+from config import comm_token, user_token, photo_token
 
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 import requests
 import datetime
 import bs4
+import time
 
 class VKBot:
     def __init__(self):
@@ -146,16 +147,17 @@ class VKBot:
         """ПОЛУЧЕНИЕ ID ФОТОГРАФИЙ С РАНЖИРОВАНИЕМ В ОБРАТНОМ ПОРЯДКЕ"""
         print(user_id)
         url = 'https://api.vk.com/method/photos.getAll'
-        params = {'access_token': user_token,
-                  # 'type': 'album',
-                   'owner_id': user_id,
-                  # 'extended': 1,
-                  # 'count': 25,
+        params = {'access_token': photo_token,
+                  'type': 'album',
+                  'owner_id': user_id,
+                  'extended': 1,
+                  'count': 25,
                   'v': '5.199'}
         resp = requests.get(url, params=params)
+        #print(resp.url)
         dict_photos = dict()
         resp_json = resp.json()
-        print(resp_json)
+        #print(resp_json)
         try:
             dict_1 = resp_json['response']
             list_1 = dict_1['items']
@@ -166,6 +168,15 @@ class VKBot:
                     likes = i_likes.get('count')
                     dict_photos[likes] = photo_id
             list_of_ids = sorted(dict_photos.items(), reverse=True)
+            print(list_of_ids)
+
+            # list = self.get_photos_id(user_id)
+            # count = 0
+            # for i in list:
+            #     count += 1
+            #     if count == 3:
+            #         return i[1]
+
             return list_of_ids
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена')
@@ -177,8 +188,11 @@ if __name__ == '__main__':
     #bot.get_age_high(423567)
     #count_users = len(bot.find_user(423567))
     #print(len(bot.find_user(423567)))
+    # bot.find_user(423567)
+    # bot.get_photos_id(73680897)
     param_find_users = bot.find_user(423567)
     for item in param_find_users:
+        time.sleep(1)
         bot.get_photos_id(item["vk_id"])
     #print(param_find_users)
 
