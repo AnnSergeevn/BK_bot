@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS VK_Partners, VK_Photos;
