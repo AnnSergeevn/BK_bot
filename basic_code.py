@@ -82,7 +82,6 @@ class VKBot:
                              age_low = event.text
                              list_date_user[age_low] = age_low
                              return list_date_user
-
         except KeyError:
              self.write_msg(user_id, 'Ошибка получения токена, введите токен в переменную - user_token')
 
@@ -95,10 +94,62 @@ class VKBot:
                         print(high_age)
                         return high_age
 
+    def cities(self, user_id, city_name):
+        """ПОЛУЧЕНИЕ ID ГОРОДА ПОЛЬЗОВАТЕЛЯ ПО НАЗВАНИЮ"""
+        url = url = f'https://api.vk.com/method/database.getCities'
+        params = {'access_token': photo_token,
+                  'country_id': 1,
+                  'q': f'{city_name}',
+                  'need_all': 0,
+                  'count': 1000,
+                  'v': '5.199'}
+        repl = requests.get(url, params=params)
+        response = repl.json()
+        try:
+            information_list = response['response']
+            list_cities = information_list['items']
+            for i in list_cities:
+                found_city_name = i.get('title')
+                if found_city_name == city_name:
+                    found_city_id = i.get('id')
+                    return int(found_city_id)
+        except KeyError:
+            self.write_msg(user_id, 'Ошибка получения токена')
+
+    def find_city(self, user_id):
+        """ПОЛУЧЕНИЕ ИНФОРМАЦИИ О ГОРОДЕ ПОЛЬЗОВАТЕЛЯ"""
+        url = f'https://api.vk.com/method/users.get'
+        params = {'access_token': photo_token,
+                  'fields': 'city',
+                  'user_ids': user_id,
+                  'v': '5.199'}
+        repl = requests.get(url, params=params)
+        response = repl.json()
+        try:
+            information_dict = response['response']
+            for i in information_dict:
+                if 'city' in i:
+                    city = i.get('city')
+                    id = str(city.get('id'))
+                    return id
+                elif 'city' not in i:
+                    self.write_msg(user_id, 'Введите название вашего города: ')
+                    for event in self.longpoll.listen():
+                        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                            city_name = event.text
+                            id_city = self.cities(user_id, city_name)
+                            if id_city != '' or id_city != None:
+                                return str(id_city)
+                            else:
+                                break
+        except KeyError:
+            self.write_msg(user_id, 'Ошибка получения токена')
+
+
     def find_user(self, user_id):
         """ПОИСК ЧЕЛОВЕКА ПО ПОЛУЧЕННЫМ ДАННЫМ"""
+        global city_name
         list_users_id = []
-
         list_users_params = []
         params_user = self.get_user(user_id)
         sex = params_user['find_sex']
@@ -106,23 +157,21 @@ class VKBot:
         age_low = params_user['age_low']
         age_high = self.get_age_high(user_id)
         url = f'https://api.vk.com/method/users.search'
-        #params = {'access_token': comm_token}
-        params = {'access_token': user_token,
+        params = {'access_token': photo_token,
                   'v': '5.199',
                   'sex': sex,
                   'age_from': age_low,
                   'age_to': age_high,
-                  'city': id_city,
+                  'city': self.find_city(user_id),
                   'fields': 'is_closed, id, first_name, last_name',
                   'status': '1' or '6',
                   'count': 500}
         resp = requests.get(url, params=params)
         resp_json = resp.json()
-        print(resp_json)
         try:
             dict_1 = resp_json['response']
             list_1 = dict_1['items']
-            print(list_1)
+            #print(list_1)
             for person_dict in list_1:
                 if person_dict.get('is_closed') == False:
                     dict_users_params = {}
@@ -139,7 +188,8 @@ class VKBot:
                     list_users_params.append(dict_users_params)
             if list_1 == []:
                 self.write_msg(user_id, 'Партнеров не найдено')
-            return list_users_params
+            print(list_users_params)
+            return list_users_params                              # занести пользователей в БД
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена')
 
@@ -169,34 +219,86 @@ class VKBot:
                     dict_photos[likes] = photo_id
             list_of_ids = sorted(dict_photos.items(), reverse=True)
             print(list_of_ids)
-
-            # list = self.get_photos_id(user_id)
-            # count = 0
-            # for i in list:
-            #     count += 1
-            #     if count == 3:
-            #         return i[1]
-
             return list_of_ids
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена')
 
+    def get_photo_1(self, user_id):
+        """ПОЛУЧЕНИЕ ID ФОТОГРАФИИ № 1"""
+        list = self.get_photos_id(user_id)
+        count = 0
+        for i in list:
+            count += 1
+            if count == 1:
+                return i[1]
+
+    def get_photo_2(self, user_id):
+        """ПОЛУЧЕНИЕ ID ФОТОГРАФИИ № 2"""
+        list = self.get_photos_id(user_id)
+        count = 0
+        for i in list:
+            count += 1
+            if count == 2:
+                return i[1]
+
+    def get_photo_3(self, user_id):
+        """ПОЛУЧЕНИЕ ID ФОТОГРАФИИ № 3"""
+        list = self.get_photos_id(user_id)
+        count = 0
+        for i in list:
+            count += 1
+            if count == 3:
+                return i[1]
+
+    def send_photo_1(self, user_id, message):
+        """ОТПРАВКА ПЕРВОЙ ФОТОГРАФИИ"""
+        self.vk.method('messages.send', {'user_id': user_id,
+                                         'access_token': photo_token,
+                                         'message': message,
+                                         'attachment': f'photo{73680897}_{self.get_photo_1(73680897)}',
+                                         'random_id': 0})
+
+    def send_photo_2(self, user_id, message):
+        """ОТПРАВКА ВТОРОЙ ФОТОГРАФИИ"""
+        self.vk.method('messages.send', {'user_id': user_id,
+                                         'access_token': photo_token,
+                                         'message': message,
+                                         'attachment': f'photo{73680897}_{self.get_photo_2(73680897)}',
+                                         'random_id': 0})
+
+    def send_photo_3(self, user_id, message):
+        """ОТПРАВКА ТРЕТЬЕЙ ФОТОГРАФИИ"""
+        self.vk.method('messages.send', {'user_id': user_id,
+                                         'access_token': photo_token,
+                                         'message': message,
+                                         'attachment': f'photo{73680897}_{self.get_photo_3(73680897)}',
+                                         'random_id': 0})
+
+    def find_persons(self, user_id):
+        #self.write_msg(user_id, self.found_person_info(id_bd))    # вывод в бот информации о найденном пользователе
+        self.write_msg(user_id, "Информация о пользователе")
+        #self.find_user(user_id) # id того кто ищет
+        #self.person_id(id_bd)
+        self.get_photos_id(73680897) # id чьи фото ищем
+        self.send_photo_1(user_id, 'Фото номер 1')
+        if self.get_photo_2(73680897) != None:
+            self.send_photo_2(user_id, 'Фото номер 2')
+        if self.get_photo_3(73680897) != None:
+            self.send_photo_3(user_id, 'Фото номер 3')
+        else:
+            self.write_msg(user_id, f'Больше фотографий нет')
+
+    def found_person_info(self, id_bd):
+        """ВЫВОД ИНФОРМАЦИИ О НАЙДЕННОМ ПОЛЬЗОВАТЕЛИ ИЗ БД"""
+        pass
+
+    def person_id(self, id_bd):
+        """ВЫВОД ID НАЙДЕННОГО ПОЛЬЗОВАТЕЛЯ ИЗ БД"""
+        pass
+        
+
+
 if __name__ == '__main__':
     bot = VKBot()
-    #bot.get_user(423567)
-    #print(bot.get_user(423567))
-    #bot.get_age_high(423567)
-    #count_users = len(bot.find_user(423567))
-    #print(len(bot.find_user(423567)))
-    # bot.find_user(423567)
-    # bot.get_photos_id(73680897)
-    param_find_users = bot.find_user(423567)
-    for item in param_find_users:
-        time.sleep(1)
-        bot.get_photos_id(item["vk_id"])
-    #print(param_find_users)
+    bot.find_persons(423567)
 
-
-    #print(count_users)
-    #bot.get_photos_id()
-    #bot.find_city(423567)
