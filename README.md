@@ -15,4 +15,4 @@
 ## Класс и методы класса `VK_keys` модуля `VK_chat_keyboard.pу`:
 1. Основной класс `VK_keys` содержит два метода:
     - `keybord()` - создание и описание объекта клавиатуры.
-    - `message_handler()` - обработка входящих сообщений и  событий в чате, принимает параметр `event` от метода `VkBotLongPoll.listen()` (Long Poll API)
+    - `message_handler()` - обработка входящих сообщений и  событий в чате, принимает параметр `event` от метода `VkBotLongPoll.listen()` (Long Poll API <https://vk-api.readthedocs.io/en/latest/longpoll.html>)
