@@ -8,7 +8,7 @@
 - VK_bot_create_sql_script.sql - Создание таблиц VK_Partners, VK_Photos, VK_settings
 - VK_bot_drop_sql_script.sql - Сборс таблиц VK_Partners, VK_Photos
 
-## Чат-бот:
+## Модули:
 1. По 3 этапу разработаны модули:
 - VK_chat_keyboard.pу - модуль клавиатуры для чат-бота
 - VK_token_get.py - модуль получения токена пользователя 
