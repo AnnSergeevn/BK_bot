@@ -29,20 +29,29 @@ class VK_chat_keys:
         return keyboard_1
 
     #обработка событий в сообщениях
-    def message_handler(self, event):
+    def message_handler(self, event, active_peer):
         #если пришло сообщение от пользователя (начало переписки), то отправить клавиатуру
         if event.type == VkBotEventType.MESSAGE_NEW:
             if event.obj.message['text'] != '':
                 if event.from_user:
                     if 'callback' not in event.obj.client_info['button_actions']:
                         print(f'Клиент {event.obj.message["from_id"]} не поддерж. callback')
+                    #проверка id собеседника (активный собеседеник или новый собеседник)
+                    if active_peer == event.obj.message['from_id'] or active_peer == '':
+                        vk.messages.send(
+                                user_id=event.obj.message['from_id'],
+                                random_id=get_random_id(),
+                                peer_id=event.obj.message['from_id'],
+                                keyboard=self.keyboard().get_keyboard(),
+                                message=event.obj.message['text'])
+                    #если в чат подключается посторонний - отправлять сообщение "Я занят"
+                    else:
+                        vk.messages.send(
+                                user_id=event.obj.message['from_id'],
+                                random_id=get_random_id(),
+                                peer_id=event.obj.message['from_id'],
+                                message="Я занят")
 
-                    vk.messages.send(
-                            user_id=event.obj.message['from_id'],
-                            random_id=get_random_id(),
-                            peer_id=event.obj.message['from_id'],
-                            keyboard=self.keyboard().get_keyboard(),
-                            message=event.obj.message['text'])
 
         #если пришло событие нажатие кнопки, то обработать это событие и вернуть значение
         elif event.type == VkBotEventType.MESSAGE_EVENT:
@@ -87,4 +96,4 @@ if __name__ == '__main__':
     #ожидание сообщений от сервера по Long Poll Api
     for event in longpoll.listen():
         #обработка входящих сообщений
-        print(vk_keys.message_handler(event))
+        print(vk_keys.message_handler(event< active_peer))
