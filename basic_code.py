@@ -194,7 +194,7 @@ class VKBot:
                     last_name = person_dict.get('last_name')
                     vk_id = str(person_dict.get('id'))
                     vk_link = 'vk.com/id' + str(person_dict.get('id'))
-                    # 2.Функция добавления партнеров в таблицу VK_Partners
+                    # 2.Вызов функции добавления партнеров в таблицу VK_Partners
                     # Запись данных по каждому партнеру first_name, last_name, partner_id, partner_link
                     add_VK_Partners(first_name, last_name, vk_id, vk_link)  # вызов функции для занесения параметров в БД
 
@@ -300,14 +300,14 @@ class VKBot:
 
     def found_person_info(self, id_bd):
         """ВЫВОД ИНФОРМАЦИИ О НАЙДЕННОМ ПОЛЬЗОВАТЕЛИ ИЗ БД"""
-        # 10.Функция получения данных о партнере (имя, фамилия, линк) по id из таблицы VK_Partners
+        # 10.Вызов функции получения данных о партнере (имя, фамилия, линк) по id из таблицы VK_Partners
         data2 = select_partner_fn_ln_link(id_bd)
         print(data2)
         # pass
 
     def person_id(self, id_bd):
         """ВЫВОД ID НАЙДЕННОГО ПОЛЬЗОВАТЕЛЯ ИЗ БД"""
-        # 11.Функция получения данных о партнере (partner_id) по id из таблицы VK_Partners
+        # 11.Вызов функции получения данных о партнере (partner_id) по id из таблицы VK_Partners
         data3 = select_partner_id(id_bd)
         print(data3)
         # pass

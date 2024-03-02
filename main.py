@@ -11,7 +11,7 @@ from work_bd import select_partner_fn_ln_link, select_partner_id
 
 
 if __name__ == '__main__':
-    # Вызов функции DROP удаления (если есть) и создания (без данных) таблиц VK_Partners, VK_Photos, VK_Settings
+    # 1.Вызов функции DROP удаления (если есть) и создания (без данных) таблиц VK_Partners, VK_Photos, VK_Settings
     # drop_create_table()
 
     # Создаем экземпляр класса VKBot
@@ -19,9 +19,11 @@ if __name__ == '__main__':
     # vkbot.find_user(716450769)
     # print(data1)
 
+    # 10.Вызов функции получения данных о партнере (имя, фамилия, линк) по id из таблицы VK_Partners
     data2 = select_partner_fn_ln_link(1)
     print(data2)
 
+    # 11.Вызов функции получения данных о партнере (partner_id) по id из таблицы VK_Partners
     data3 = select_partner_id(3)
     print(data3)
 

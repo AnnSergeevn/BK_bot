@@ -192,7 +192,7 @@ def select_partner_id(partner_id):
     conn.close()
 
 
-# Функция получаем фото из таблицы VK_Photos по partner_id (id партнера)
+# 12.Функция получаем фото из таблицы VK_Photos по partner_id (id партнера)
 def get_photo(partner_id):
     with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
         with conn.cursor() as cur:
