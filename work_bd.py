@@ -11,14 +11,13 @@ def get_password():
     name_bd = data["password"]["name_bd"]
     return [password, name_bd]
 
-# Функция DROP удаления (если есть) и создания (без данных) таблиц VK_Partners, VK_Photos, VK_Settings
-def create_table():
+# 1.Функция DROP удаления (если есть) и создания (без данных) таблиц VK_Partners, VK_Photos, VK_Settings
+def drop_create_table():
     with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
         with conn.cursor() as cur:
             cur.execute("""
                 DROP TABLE IF EXISTS VK_Partners;
                 DROP TABLE IF EXISTS VK_Photos;
-                DROP TABLE IF EXISTS VK_Settings;
                 """)
             conn.commit()
 
@@ -28,6 +27,7 @@ def create_table():
                     first_name VARCHAR(100) NOT NULL,
                     last_name VARCHAR(100),
                     partner_id VARCHAR(20) NOT NULL,
+                    partner_link VARCHAR(100) NOT NULL,
                     favorite BOOLEAN NOT NULL DEFAULT False,
                     ban BOOLEAN NOT NULL DEFAULT False);
                  """)
@@ -50,22 +50,23 @@ def create_table():
             conn.commit()
 
 
-# Функция добавления партнеров в таблицу VK_Partners
-def add_VK_Partners(first_name, last_name, partner_id):
+# 2.Функция добавления партнеров в таблицу VK_Partners
+# Запись данных по каждому партнеру first_name, last_name, partner_id, partner_link
+def add_VK_Partners(first_name, last_name, partner_id, partner_link):
     with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO VK_Partners(first_name, last_name, partner_id) 
-                VALUES(%s, %s, %s)
+                INSERT INTO VK_Partners(first_name, last_name, partner_id, partner_link) 
+                VALUES(%s, %s, %s, %s)
                 RETURNING first_name, last_name, partner_id, favorite, ban
-                """, (first_name, last_name, partner_id))
+                """, (first_name, last_name, partner_id, partner_link))
             new_VK_Partners = cur.fetchone()
             print(f'Добавлен партнер {new_VK_Partners}')
             conn.commit()
     conn.close()
 
 
-# Функция добавления фото в таблицу VK_Partners
+# 3.Функция добавления фото в таблицу VK_Partners
 def add_VK_Photos(partner_id, photo_link):
     with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
         with conn.cursor() as cur:
@@ -79,7 +80,7 @@ def add_VK_Photos(partner_id, photo_link):
             conn.commit()
     conn.close()
 
-# Функция получения количества партнеров
+# 4.Функция получения количества партнеров
 def select_count_partners():
     with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
         with conn.cursor() as cur:
@@ -93,7 +94,7 @@ def select_count_partners():
     conn.close()
 
 
-# Функция проверки, что партнер (partner_id) в бане (ban = True или False)
+# 5.Функция проверки, что партнер (partner_id) в бане (ban = True или False)
 def check_ban_partner(partner_id):
     with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
         with conn.cursor() as cur:
@@ -107,7 +108,7 @@ def check_ban_partner(partner_id):
             conn.commit()
     conn.close()
 
-# Функция добавления партнера (partner_id) в бан (ban = True)
+# 6.Функция добавления партнера (partner_id) в бан (ban = True)
 def add_ban_partner(partner_id):
     with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
         with conn.cursor() as cur:
@@ -119,7 +120,7 @@ def add_ban_partner(partner_id):
             conn.commit()
     conn.close()
 
-# Функция проверки, что партнер (partner_id) в избранном (favorite = True или False)
+# 7.Функция проверки, что партнер (partner_id) в избранном (favorite = True или False)
 def check_favorite_partner(partner_id):
     with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
         with conn.cursor() as cur:
@@ -133,7 +134,7 @@ def check_favorite_partner(partner_id):
             conn.commit()
     conn.close()
 
-# Функция добавления партнера (partner_id) в избранное (favorite = True)
+# 8.Функция добавления партнера (partner_id) в избранное (favorite = True)
 def add_favorite_partner(partner_id):
     with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
         with conn.cursor() as cur:
@@ -146,7 +147,7 @@ def add_favorite_partner(partner_id):
     conn.close()
 
 
-# Функция получения всех данных о партнере (имя, фамилия, id, фото)
+# 9.Функция получения всех данных о партнере (имя, фамилия, partner_id, фото)
 def select_partner(partner_id):
     with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
         with conn.cursor() as cur:
@@ -156,6 +157,36 @@ def select_partner(partner_id):
                 WHERE VK_Partners.partner_id = %s;
                 """, (partner_id,))
             partner = cur.fetchall()
+            return partner
+            conn.commit()
+    conn.close()
+
+
+# 10.Функция получения данных о партнере (имя, фамилия, линк) по id из таблицы VK_Partners
+def select_partner_fn_ln_link(id):
+    with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT first_name, last_name, partner_link
+                FROM VK_Partners 
+                WHERE id = %s;
+                """, (id,))
+            partner = cur.fetchone()
+            return partner
+            conn.commit()
+    conn.close()
+
+
+# 11.Функция получения данных о партнере (partner_id) по id из таблицы VK_Partners
+def select_partner_id(partner_id):
+    with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                 SELECT partner_id
+                 FROM VK_Partners 
+                 WHERE id = %s;
+                 """, (partner_id,))
+            partner = cur.fetchone()
             return partner
             conn.commit()
     conn.close()

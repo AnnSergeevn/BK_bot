@@ -1,12 +1,18 @@
 from random import randrange
-from config import comm_token, photo_token
+from config import comm_token, photo_token, GROUP_ID, API_VERSION
 
 import vk_api
+from vk_api import VkApi
 from vk_api.longpoll import VkLongPoll, VkEventType
+from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 import requests
 import datetime
 import bs4
 import time
+import json
+
+from work_bd import drop_create_table, add_VK_Partners, select_partner_fn_ln_link
+from work_bd import select_partner_id
 
 class VKBot:
     def __init__(self):
@@ -18,9 +24,18 @@ class VKBot:
         """МЕТОД ДЛЯ ОТПРАВКИ СООБЩЕНИЙ"""
         self.vk.method('messages.send', {'user_id': user_id, 'message': message, 'random_id': randrange(10 ** 7)})
 
+    def get_user_id(self, event):
+        if event.type == VkBotEventType.MESSAGE_NEW:
+            if event.obj.message['text'] != '':
+                if event.from_user:
+                    # print(f'USER_ID {event.obj.message["from_id"]} ')
+                    user_id = event.obj.message["from_id"]
+                    return user_id
+
     def get_user(self, user_id):
         """Получение имени пользователя, который написал боту, пола, возраста, города, в котором он проживает.
         Получение нижней границы возраста для поиска людей"""
+
         print("\nПолучено имя пользователя!")
         list_date_user = {}
         url = f'https://api.vk.com/method/users.get'
@@ -29,69 +44,73 @@ class VKBot:
                   'fields': 'sex, bdate, city',
                   'v': '5.199'}
         repl = requests.get(url, params=params)
-        print(repl.url)
+        # print(repl.url)
         response = repl.json()
-        print(response)
+        # print(response)
         try:
-             information_dict = response['response']
-             for i in information_dict:
-                 first_name = i.get('first_name')
-                 find_sex = i.get('sex')
-                 date = i.get('bdate')
-                 print(date)
-                 print(find_sex)
-                 print(first_name)
-                 list_date_user['first_name'] = first_name
-                 list_date_user['find_sex'] = find_sex
-                 if 'city' in i:
-                     city = i.get('city')
-                     id = str(city.get('id'))
-                     title = str(city.get('title'))
-                     print(city)
-                     list_date_user['id_city'] = id
-                 elif 'city' not in i:
-                     self.write_msg(user_id, 'Введите название вашего города: ')
-                     for event in self.longpoll.listen():
-                         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                             city_name = event.text
-                             print(city_name)
-                             list_date_user[city_name] = city_name
-                 date_list = date.split('.')
-                 print(date_list)
-                 list_date_user['date_list'] = date_list
-                 if len(date_list) == 3:
-                     year = int(date_list[2])
-                     year_now = int(datetime.date.today().year)
-                     age_now = year_now - year
-                     list_date_user['age_now'] = age_now
-                     self.write_msg(user_id, 'Введите нижний порог возраста: ')
-                     for event in self.longpoll.listen():
-                         print(self.longpoll.listen())
-                         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                             print(event.type)
-                             age_low = event.text
-                             print(age_low)
-                             list_date_user['age_low'] = age_low
-                             print(list_date_user)
-                             return list_date_user
-                 elif len(date_list) == 2 or date not in information_dict:
-                     self.write_msg(user_id, 'Введите нижний порог возраста для поиска: ')
-                     for event in self.longpoll.listen():
-                         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                             age_low = event.text
-                             list_date_user[age_low] = age_low
-                             return list_date_user
+            information_dict = response['response']
+            for i in information_dict:
+                first_name = i.get('first_name')
+                find_sex = i.get('sex')
+                date = i.get('bdate')
+                list_date_user['first_name'] = first_name
+                list_date_user['find_sex'] = find_sex
+                if 'city' in i:
+                    city = i.get('city')
+                    id = str(city.get('id'))
+                    # title = str(city.get('title'))
+                    list_date_user['id_city'] = id
+                elif 'city' not in i:
+                    self.write_msg(user_id, 'Введите название вашего города: ')
+                    for event in self.longpoll.listen():
+                        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                            city_name = event.text
+                            # print(city_name)
+                            list_date_user[city_name] = city_name
+                date_list = date.split('.')
+                print(date_list)
+                list_date_user['date_list'] = date_list
+                if len(date_list) == 3:
+                    year = int(date_list[2])
+                    year_now = int(datetime.date.today().year)
+                    age_now = year_now - year
+                    list_date_user['age_now'] = age_now
+                    for event in self.longpoll.listen():
+                        print(self.longpoll.listen())
+                        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                            event.text != ""
+                            self.write_msg(user_id, 'Введите нижний порог возраста: ')
+                            for event in self.longpoll.listen():
+                                print(self.longpoll.listen())
+                                if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                                    print(event.text, "Тест события")
+                                    age_low = event.text
+                                    print(age_low)
+                                    list_date_user['age_low'] = age_low
+                                    # print(list_date_user)
+                                    return list_date_user
+                elif len(date_list) == 2 or date not in information_dict:
+                    for event in self.longpoll.listen():
+                        print(self.longpoll.listen())
+                        if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                            event.text != ""
+                            self.write_msg(user_id, 'Введите нижний порог возраста для поиска: ')
+                            for event in self.longpoll.listen():
+                                if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                                    age_low = event.text
+                                    list_date_user[age_low] = age_low
+                                    return list_date_user
         except KeyError:
-             self.write_msg(user_id, 'Ошибка получения токена, введите токен в переменную - user_token')
+            self.write_msg(user_id, 'Ошибка получения токена, введите токен в переменную - user_token')
 
     def get_age_high(self, user_id):
         """Верхняя ганица возраста для поиска пользователей"""
         self.write_msg(user_id, 'Введите верхний порог возраста: ')
         for event in self.longpoll.listen():
-                if event.type == VkEventType.MESSAGE_NEW and event.to_me:
-                        high_age = event.text
-                        print(high_age)
-                        return high_age
+            if event.type == VkEventType.MESSAGE_NEW and event.to_me:
+                high_age = event.text
+                print(high_age)
+                return high_age
 
     def cities(self, user_id, city_name):
         """ПОЛУЧЕНИЕ ID ГОРОДА ПОЛЬЗОВАТЕЛЯ ПО НАЗВАНИЮ"""
@@ -144,10 +163,9 @@ class VKBot:
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена')
 
-
     def find_user(self, user_id):
         """ПОИСК ЧЕЛОВЕКА ПО ПОЛУЧЕННЫМ ДАННЫМ"""
-        global city_name
+        # global city_name
         list_users_id = []
         list_users_params = []
         params_user = self.get_user(user_id)
@@ -170,31 +188,24 @@ class VKBot:
         try:
             dict_1 = resp_json['response']
             list_1 = dict_1['items']
-            #print(list_1)
             for person_dict in list_1:
                 if person_dict.get('is_closed') == False:
-                    dict_users_params = {}
                     first_name = person_dict.get('first_name')
                     last_name = person_dict.get('last_name')
                     vk_id = str(person_dict.get('id'))
-                    list_users_id.append(vk_id)
                     vk_link = 'vk.com/id' + str(person_dict.get('id'))
-                    list_users_id.append(vk_id)
-                    dict_users_params["first_name"] = first_name
-                    dict_users_params["last_name"] = last_name
-                    dict_users_params["vk_id"] = vk_id
-                    dict_users_params["vk_link"] = vk_link
-                    list_users_params.append(dict_users_params)
+                    # 2.Функция добавления партнеров в таблицу VK_Partners
+                    # Запись данных по каждому партнеру first_name, last_name, partner_id, partner_link
+                    add_VK_Partners(first_name, last_name, vk_id, vk_link)  # вызов функции для занесения параметров в БД
+
             if list_1 == []:
                 self.write_msg(user_id, 'Партнеров не найдено')
-            print(list_users_params)
-            return list_users_params                              # занести пользователей в БД
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена')
 
     def get_photos_id(self, user_id):
         """ПОЛУЧЕНИЕ ID ФОТОГРАФИЙ С РАНЖИРОВАНИЕМ В ОБРАТНОМ ПОРЯДКЕ"""
-        print(user_id)
+        # print(user_id)
         url = 'https://api.vk.com/method/photos.getAll'
         params = {'access_token': photo_token,
                   'type': 'album',
@@ -203,10 +214,10 @@ class VKBot:
                   'count': 25,
                   'v': '5.199'}
         resp = requests.get(url, params=params)
-        #print(resp.url)
+        # print(resp.url)
         dict_photos = dict()
         resp_json = resp.json()
-        print(resp_json)
+        # print(resp_json)
         try:
             dict_1 = resp_json['response']
             list_1 = dict_1['items']
@@ -217,7 +228,7 @@ class VKBot:
                     likes = i_likes.get('count')
                     dict_photos[likes] = photo_id
             list_of_ids = sorted(dict_photos.items(), reverse=True)
-            print(list_of_ids)
+            # print(list_of_ids)
             return list_of_ids
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена')
@@ -274,11 +285,11 @@ class VKBot:
                                          'random_id': 0})
 
     def find_persons(self, user_id):
-        #self.write_msg(user_id, self.found_person_info(id_bd))    # вывод в бот информации о найденном пользователе
+        # self.write_msg(user_id, self.found_person_info(id_bd))    # вывод в бот информации о найденном пользователе
         self.write_msg(user_id, "Информация о пользователе")
-        #self.find_user(user_id) # id того кто ищет
-        #self.person_id(id_bd)
-        self.get_photos_id(73680897) # id чьи фото ищем
+        # self.find_user(user_id) # id того кто ищет
+        # self.person_id(id_bd)
+        self.get_photos_id(73680897)  # id чьи фото ищем
         self.send_photo_1(user_id, 'Фото номер 1')
         if self.get_photo_2(73680897) != None:
             self.send_photo_2(user_id, 'Фото номер 2')
@@ -289,15 +300,35 @@ class VKBot:
 
     def found_person_info(self, id_bd):
         """ВЫВОД ИНФОРМАЦИИ О НАЙДЕННОМ ПОЛЬЗОВАТЕЛИ ИЗ БД"""
-        pass
+        # 10.Функция получения данных о партнере (имя, фамилия, линк) по id из таблицы VK_Partners
+        data2 = select_partner_fn_ln_link(id_bd)
+        print(data2)
+        # pass
 
     def person_id(self, id_bd):
         """ВЫВОД ID НАЙДЕННОГО ПОЛЬЗОВАТЕЛЯ ИЗ БД"""
-        pass
-
+        # 11.Функция получения данных о партнере (partner_id) по id из таблицы VK_Partners
+        data3 = select_partner_id(id_bd)
+        print(data3)
+        # pass
 
 
 if __name__ == '__main__':
+
+    # создание сессии и начало работы с API
+    vk_session = VkApi(token=comm_token, api_version=API_VERSION)
+    vk = vk_session.get_api()
+    longpoll = VkBotLongPoll(vk_session, group_id=GROUP_ID)
+
     bot = VKBot()
-    bot.find_persons(423567)
+    user_id = []
+    i = 0
+    for ind, event in enumerate(longpoll.listen()):
+        # обработка входящих сообщений
+        bot.get_user_id(event)
+        user_id.append(bot.get_user_id(event))
+        if ind == 1:
+            break
+    bot.find_persons(user_id[1])
+    # bot.find_user(user_id[1])
 
