@@ -6,7 +6,7 @@ import configparser
 # name_bd (название базы данных) из файла 'password.ini'
 def get_password():
     data = configparser.ConfigParser()
-    data.read('password.ini')
+    data.read('password_1.ini')
     password = data["password"]["password"]
     name_bd = data["password"]["name_bd"]
     return [password, name_bd]
@@ -58,7 +58,7 @@ def add_VK_Partners(first_name, last_name, partner_id, partner_link):
             cur.execute("""
                 INSERT INTO VK_Partners(first_name, last_name, partner_id, partner_link) 
                 VALUES(%s, %s, %s, %s)
-                RETURNING first_name, last_name, partner_id, favorite, ban
+                RETURNING first_name, last_name, partner_id, partner_link, favorite, ban
                 """, (first_name, last_name, partner_id, partner_link))
             new_VK_Partners = cur.fetchone()
             print(f'Добавлен партнер {new_VK_Partners}')
@@ -66,7 +66,7 @@ def add_VK_Partners(first_name, last_name, partner_id, partner_link):
     conn.close()
 
 
-# 3.Функция добавления фото в таблицу VK_Partners
+# 3.Функция добавления фото (partner_id, photo_link) в таблицу VK_Partners
 def add_VK_Photos(partner_id, photo_link):
     with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
         with conn.cursor() as cur:
@@ -192,7 +192,7 @@ def select_partner_id(partner_id):
     conn.close()
 
 
-# 12.Функция получаем фото из таблицы VK_Photos по partner_id (id партнера)
+# 12.Функция получения списка (3 фото) из таблицы VK_Photos по partner_id (id партнера)
 def get_photo(partner_id):
     with psycopg2.connect(database=get_password()[1], user="postgres", password=get_password()[0]) as conn:
         with conn.cursor() as cur:
@@ -202,6 +202,7 @@ def get_photo(partner_id):
                 WHERE partner_id = %s;
                 """, (partner_id,))
             photo = cur.fetchall()
-            return photo
+            photo_list = photo[0][0].split(',')
+            return photo_list
             conn.commit()
     conn.close()
