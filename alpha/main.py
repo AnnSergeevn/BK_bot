@@ -338,6 +338,7 @@ class VKBot:
         elif next_id != None :
             return next_id
 
+# метод для первичной настройки работы Бота
 def bot_app_init():
 
     cmd = input('Обновить данные Бота (VK_Settings)? y/n ')
@@ -365,8 +366,10 @@ if __name__ == '__main__':
     # работа с БД
     get_password()
     
+    # очитска таблиц
     drop_create_table()
-
+     
+    # запрос данных для работы с VK API
     bot_app_init()
 
 
@@ -483,12 +486,17 @@ if __name__ == '__main__':
             # если событие - нажатие кнопки "Закрыть" (закончить диалог с Ботом)
             elif event.object.payload.get('type') == 'quit':
                 
-                # выводим информацию о том, как начать диалог с Ботом заново
-                bot.write_msg(active_user, 'Для начала работы Бота, обратитесь к нему: "О Великий разум!"', 'edit', False, msg_id)
-
                 # устанавливаем базовые значения переменных
                 active_user = ''
                 current_id = 1
+
+                # сбрасываем таблицы
+                drop_create_table()
+                
+                # выводим информацию о том, как начать диалог с Ботом заново
+                bot.write_msg(active_user, 'Для начала работы Бота, обратитесь к нему: "О Великий разум!"', 'edit', False, msg_id)
+
+
                 
 
                 
