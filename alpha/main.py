@@ -1,5 +1,4 @@
 from random import randrange
-from config import comm_token, photo_token, GROUP_ID, API_VERSION
 
 import vk_api
 from vk_api import VkApi
@@ -225,10 +224,11 @@ class VKBot:
             self.write_msg(user_id, 'Ошибка получения токена (в методе get_photos_id())', 'error')
 
     # метод сохранения фотографий в БД        
-    def save_photo(self):
+    def save_photo(self, msg_id):
         # для каждой записи (партнеров) в таблице VK_Partners
         # вызываем метод get.photos_id, если количество фотографий, возвращенных методом, больше или равно 3 шт,
         # то выполняем только запись 3 шт, если меньше 3 шт, то записываем все что есть
+        share = 100/select_count_partners()
         for i in range(select_count_partners()): 
             partner_id = select_partner_id(i+1)
             all_partners_photos = self.get_photos_id(partner_id)
@@ -238,11 +238,21 @@ class VKBot:
             else:
                 for j in range(len(all_partners_photos)):
                     add_VK_Photos(partner_id, f'photo{partner_id[0]}_{all_partners_photos[j][1]}')
+            # вывод значений прогресса сохранения фотографий в БД в чат 
+            # чтобы исключить ошибку vk_api.exceptions.ApiError: [9] Flood control: too much messages sent to user
+            # бот отправляет сообщение о прогрессе 1 раз в 10 пользователей (значение i цикла for)
+            if (i+1) % 10 == 0:
+                progress = float('{:.1f}'.format(share * i))
+                bot.write_msg(active_user, f'Бот собирает фотографии пользователей, это может занять несколько больше секунд...\n Выполнено {progress}%', 'edit', False, msg_id)
+        # по окончанию выводим финальное значение 100%
+        bot.write_msg(active_user, f'Бот собирает фотографии пользователей, это может занять несколько больше секунд...\n Выполнено 100.0%', 'edit', False, msg_id)
+                
 
     # метод формирования "базового ответа" в чате - представление результатов работы Бота
     def chat_respond(self, user_id, msg_id, msg_type, partner_id):
-        partner_info = f'Вот что нашел Бот (пользователей - {select_count_partners()}): \n\n  {select_partner_fn_ln_link(partner_id)}'
-        self.write_msg(user_id, partner_info, msg_type, True, msg_id, get_photo(partner_id))
+            partner_info = f'Вот что нашел Бот (пользователей - {select_count_partners()}): \n\n  {select_partner_fn_ln_link(partner_id)}'
+            self.write_msg(user_id, partner_info, msg_type, True, msg_id, get_photo(partner_id))
+
 
     # метод работы с исходящими от Бота сообщениями
     # метод может выполнять как отправку новых сообщений, так и редактировать существующие
@@ -293,8 +303,18 @@ class VKBot:
                 user_id=user_id,
                 random_id=get_random_id(),
                 peer_id=user_id,
-                message=message)
+                message=message                
+                )
             return last_id
+        # тип сообщения - выход
+        elif msg_type == 'exit':
+            self.vk_bot.messages.edit(
+                peer_id=user_id,
+                message=message,
+                message_id=msg_id,
+                keyboard=vk_keys.exit_keys().get_keyboard()
+                )
+        
         # тип сообщения - показать список избранных
         elif msg_type == 'show_favorite':
             # выборка информации о партнерах из числа добавленных в избранное
@@ -356,7 +376,8 @@ def bot_app_init():
         print('ОК')
     
     else:
-        print(f'Exception: {cmd}')
+        print('Ошибка ввода...')
+        return bot_app_init()
 
 
 
@@ -377,7 +398,7 @@ if __name__ == '__main__':
     vk_session = VkApi(token=get_VK_Settings_conf_value('comm_token'))
     vk = vk_session.get_api()
     botLongpoll = VkBotLongPoll(vk_session, group_id=get_VK_Settings_conf_value('group_id'))
-    longpoll = VkLongPoll(vk_session, get_VK_Settings_conf_value('group_id'))
+    longpoll = VkLongPoll(vk_session)
 
     # создание объекта класса для работы с клавиатурой
     vk_keys = VK_chat_keys(vk_session, vk, botLongpoll)
@@ -409,17 +430,22 @@ if __name__ == '__main__':
                         active_user = bot.get_user_id(event)
 
                         # поиск и запись подходящих партнеров в БД
-                        bot.write_msg(active_user, 'Бот ищет подходящих пользователей, это может занять несколько секунд...', 'send')
+                        msg_id = bot.write_msg(active_user, 'Бот ищет подходящих пользователей, это может занять несколько секунд...', 'send')
                         bot.find_partners(active_user)
 
                         # поиск и запись фотографий партнеров в БД
-                        bot.write_msg(active_user, 'Бот собирает фотографии пользователей, это может занять несколько больше секунд...', 'send')
-                        bot.save_photo()
+                        msg_id = bot.write_msg(active_user, 'Бот собирает фотографии пользователей, это может занять несколько больше секунд...\n Выполнено 0.0%', 'send')
+                        bot.save_photo(msg_id)
 
                         # сообщение о том, что Бот закончил поиск необходима для определения ID (msg_id) последнего сообщения
                         # в псоледующем никаких новых сообщений Бот отправлять не будет - только редактирования сообщения с ID
                         msg_id = bot.write_msg(active_user, 'Бот закончил поиски.', 'send')
-                        bot.chat_respond(active_user, msg_id, 'edit', select_partner_id(current_id))
+
+
+                        if select_count_partners() != 0:
+                            bot.chat_respond(active_user, msg_id, 'edit', select_partner_id(current_id))
+                        else:
+                            bot.write_msg(active_user, 'Пользователей с указанными параметрами не найдено.', 'exit', True, msg_id)
                         
                     # если с Ботом уже кто-то беседует
                     if active_user != '':
@@ -484,17 +510,16 @@ if __name__ == '__main__':
                 bot.chat_respond(active_user, msg_id, 'edit', select_partner_id(current_id))
 
             # если событие - нажатие кнопки "Закрыть" (закончить диалог с Ботом)
-            elif event.object.payload.get('type') == 'quit':
-                
+            elif event.object.payload.get('type') == 'quit':                               
+                # выводим информацию о том, как начать диалог с Ботом заново
+                bot.write_msg(active_user, 'Для начала работы Бота, обратитесь к нему: "О Великий разум!"', 'edit', False, msg_id)
+
                 # устанавливаем базовые значения переменных
                 active_user = ''
                 current_id = 1
 
                 # сбрасываем таблицы
                 drop_create_table()
-                
-                # выводим информацию о том, как начать диалог с Ботом заново
-                bot.write_msg(active_user, 'Для начала работы Бота, обратитесь к нему: "О Великий разум!"', 'edit', False, msg_id)
 
 
                 

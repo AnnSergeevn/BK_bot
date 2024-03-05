@@ -34,7 +34,7 @@ class VK_chat_keys:
         return keyboard
 
     def aux_keys(self):
-        #определяем тип кнопок для вспомогательного меню - возврат из списка избранных
+        # определяем тип кнопок для вспомогательного меню - возврат из списка избранных
         settings = dict(one_time=False, inline=True) 
         aux_keyboard = VkKeyboard(**settings) 
 
@@ -42,6 +42,16 @@ class VK_chat_keys:
         aux_keyboard.add_callback_button(label="Вернуться к поиску партнеров", color=VkKeyboardColor.PRIMARY, payload={"type": "return"})
 
         return aux_keyboard
+
+    def exit_keys(self):
+        # определяем тип кнопки - закрыть
+        settings = dict(one_time=False, inline=True) 
+        exit_keyboard = VkKeyboard(**settings) 
+
+        # создаем кнопку
+        exit_keyboard.add_callback_button(label="Закрыть", color=VkKeyboardColor.NEGATIVE, payload={"type": "quit"})
+
+        return exit_keyboard
 
     def pop_up(self, user_id, event_id, msg):
         payload = {

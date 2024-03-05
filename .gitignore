@@ -9,3 +9,4 @@ ehthumbs.db
 Thumbs.db
 .pytest_cache
 __pycache__
+password.ini
