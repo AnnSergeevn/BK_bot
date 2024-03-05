@@ -155,7 +155,7 @@ class VKBot:
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена (в методе find_city())', 'error')
 
-    def find_partners(self, user_id):
+    def find_partners(self, user_id, msg_id):
         """ПОИСК ЧЕЛОВЕКА ПО ПОЛУЧЕННЫМ ДАННЫМ"""
         #global city_name
         list_users_id = []
@@ -193,7 +193,10 @@ class VKBot:
                     add_VK_Partners(first_name, last_name, vk_id, vk_link)  # вызов функции для занесения параметров в БД
 
             if list_1 == []:
-                self.write_msg(user_id, 'Партнеров не найдено', 'error')
+                msg_id = self.write_msg(user_id, 'Партнеров не найдено', 'error')
+            
+            print(msg_id)
+            return msg_id
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена (в методе find_partners())', 'error')
 
@@ -299,13 +302,13 @@ class VKBot:
                     )
         # тип сообщения - ошибка
         elif msg_type == 'error':
-            last_id = self.vk_bot.messages.send(
+            msg_id = self.vk_bot.messages.send(
                 user_id=user_id,
                 random_id=get_random_id(),
                 peer_id=user_id,
                 message=message                
                 )
-            return last_id
+            return msg_id
         # тип сообщения - выход
         elif msg_type == 'exit':
             self.vk_bot.messages.edit(
@@ -431,19 +434,19 @@ if __name__ == '__main__':
 
                         # поиск и запись подходящих партнеров в БД
                         msg_id = bot.write_msg(active_user, 'Бот ищет подходящих пользователей, это может занять несколько секунд...', 'send')
-                        bot.find_partners(active_user)
-
-                        # поиск и запись фотографий партнеров в БД
-                        msg_id = bot.write_msg(active_user, 'Бот собирает фотографии пользователей, это может занять несколько больше секунд...\n Выполнено 0.0%', 'send')
-                        bot.save_photo(msg_id)
-
-                        # сообщение о том, что Бот закончил поиск необходима для определения ID (msg_id) последнего сообщения
-                        # в псоледующем никаких новых сообщений Бот отправлять не будет - только редактирования сообщения с ID
-                        msg_id = bot.write_msg(active_user, 'Бот закончил поиски.', 'send')
-
-
+                        msg_id = bot.find_partners(active_user, msg_id)
                         if select_count_partners() != 0:
+
+                            # поиск и запись фотографий партнеров в БД
+                            msg_id = bot.write_msg(active_user, 'Бот собирает фотографии пользователей, это может занять несколько больше секунд...\n Выполнено 0.0%', 'send')
+                            bot.save_photo(msg_id)
+
+                            # сообщение о том, что Бот закончил поиск необходима для определения ID (msg_id) последнего сообщения
+                            # в псоледующем никаких новых сообщений Бот отправлять не будет - только редактирования сообщения с ID
+                            msg_id = bot.write_msg(active_user, 'Бот закончил поиски.', 'send')
                             bot.chat_respond(active_user, msg_id, 'edit', select_partner_id(current_id))
+
+
                         else:
                             bot.write_msg(active_user, 'Пользователей с указанными параметрами не найдено.', 'exit', True, msg_id)
                         
