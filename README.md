@@ -27,7 +27,7 @@
 
 ## Работа бота представлена на схеме:
 
-![VK_bot_flowchart (2).png](VK_bot_flowchart%20%282%29.png)
+![VK_bot_block-scheme_picture.png](VK_bot_block-scheme_picture.png)
 
 ---
 
@@ -83,10 +83,10 @@
 2. Модуль [work_bd.py](work_bd.py) работы с базой данных
 3. Модуль [VK_bot_keyboard.py](VK_bot_keyboard.py) работы с кнопками
 4. Файл [password.ini](password.ini) для работы с postgresSQL
-5. Файл `VK_bot_flowchart (2).png` - изображение схемы работы бота
+5. Файл `VK_bot_block-scheme_picture.png` - изображение схемы работы бота
 6. Файл `BD_picture.png` изображение схемы базы данных
 7. Файл [BD_scheme.drawio](BD_scheme.drawio) - схема работы бота
-8. Файл [VK_bot_flowchart (2).drawio](VK_bot_flowchart%20%282%29.drawio)- 
+8. Файл [VK_bot_block-scheme.drawio](VK_bot_block-scheme.drawio)- 
  схема базы данных
 9. Файл [requirements.txt](requirements.txt) - импортированные библиотеки
 10. Файл [README.md](README.md)
