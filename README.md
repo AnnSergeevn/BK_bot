@@ -85,9 +85,9 @@
 4. Файл [password.ini](password.ini) для работы с postgresSQL
 5. Файл `VK_bot_block-scheme_picture.png` - изображение схемы работы бота
 6. Файл `BD_picture.png` изображение схемы базы данных
-7. Файл [BD_scheme.drawio](BD_scheme.drawio) - схема работы бота
+7. Файл [BD_scheme.drawio](BD_scheme.drawio) - схема базы данных
 8. Файл [VK_bot_block-scheme.drawio](VK_bot_block-scheme.drawio)- 
- схема базы данных
+ схема работы бота
 9. Файл [requirements.txt](requirements.txt) - импортированные библиотеки
 10. Файл [README.md](README.md)
 11. Файл [.gitignore](.gitignore)
