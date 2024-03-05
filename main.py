@@ -176,8 +176,8 @@ class VKBot:
                   'age_to': age_high,
                   'city': self.find_city(user_id),
                   'fields': 'is_closed, id, first_name, last_name',
-                  'status': '1' or '6',
-                  'count': 500}
+                  'status': '6',
+                  'count': 1000}
         resp = requests.get(url, params=params)
         resp_json = resp.json()
         try:
