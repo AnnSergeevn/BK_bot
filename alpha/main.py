@@ -435,6 +435,8 @@ if __name__ == '__main__':
                         # поиск и запись подходящих партнеров в БД
                         msg_id = bot.write_msg(active_user, 'Бот ищет подходящих пользователей, это может занять несколько секунд...', 'send')
                         msg_id = bot.find_partners(active_user, msg_id)
+
+                        # если найдены партнеры
                         if select_count_partners() != 0:
 
                             # поиск и запись фотографий партнеров в БД
@@ -447,6 +449,7 @@ if __name__ == '__main__':
                             bot.chat_respond(active_user, msg_id, 'edit', select_partner_id(current_id))
 
 
+                        # если ни одного подходящего партнера не найдено, то вывести сообщение с кнопкой "Закрыть"
                         else:
                             bot.write_msg(active_user, 'Пользователей с указанными параметрами не найдено.', 'exit', True, msg_id)
                         
