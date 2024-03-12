@@ -29,7 +29,7 @@ def drop_create_table():
                     id SERIAL PRIMARY KEY,
                     first_name VARCHAR(100) NOT NULL,
                     last_name VARCHAR(100),
-                    partner_id VARCHAR(20) NOT NULL,
+                    partner_id VARCHAR(20) UNIQUE NOT NULL,
                     partner_link VARCHAR(100) NOT NULL,
                     favorite BOOLEAN NOT NULL DEFAULT False,
                     ban BOOLEAN NOT NULL DEFAULT False);
@@ -39,7 +39,7 @@ def drop_create_table():
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS VK_Photos (
                     id SERIAL PRIMARY KEY,
-                    partner_id VARCHAR(20) NOT NULL,
+                    partner_id VARCHAR(20) NOT NULL REFERENCES VK_Partners(partner_id),
                     photo_link VARCHAR(100) NOT NULL);
                 """)
             conn.commit()
