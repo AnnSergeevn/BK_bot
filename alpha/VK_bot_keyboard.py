@@ -16,24 +16,46 @@ class VK_chat_keys:
         #определяем тип кнопок
         settings = dict(one_time=False, inline=True) 
         keyboard = VkKeyboard(**settings) 
+        
+        keys_struct = ({
+            'label' : "Следующий пользователь",
+            'color' : VkKeyboardColor.PRIMARY,
+            '_type' : "forward"
+        },
+        {
+            'label' : "Предыдущий пользователь",
+            'color' : VkKeyboardColor.PRIMARY,
+            '_type' : "backward"
+        },
+        {
+            'label' : "Добавить в избранное",
+            'color' : VkKeyboardColor.POSITIVE,
+            '_type' : "like"
+        },
+        {
+            'label' : "Добавить в черный список",
+            'color' : VkKeyboardColor.NEGATIVE,
+            '_type' : "ban"
+        },
+        {
+            'label' : "Показать избранных",
+            'color' : VkKeyboardColor.POSITIVE,
+            '_type' : "show_favorite"
+        },
+        {
+            'label' : "Закрыть",
+            'color' : VkKeyboardColor.NEGATIVE,
+            '_type' : "quit"
+        })
 
-        #создаем кнопки
-        keyboard.add_callback_button(label="Следующий пользователь", color=VkKeyboardColor.PRIMARY, payload={"type": "forward"})
-        keyboard.add_line()
-        keyboard.add_callback_button(label="Предыдущий пользователь", color=VkKeyboardColor.PRIMARY, payload={"type": "backward"})
-        keyboard.add_line()
-        keyboard.add_callback_button(label="Добавить в избранное", color=VkKeyboardColor.POSITIVE, payload={"type": "like"})
-        keyboard.add_line()
-        keyboard.add_callback_button(label="Добавить в черный список", color=VkKeyboardColor.NEGATIVE, payload={"type": "ban"})
-        keyboard.add_line()
-        keyboard.add_callback_button(label="Показать избранных", color=VkKeyboardColor.POSITIVE, payload={"type": "show_favorite"})
-        keyboard.add_line()
-        keyboard.add_callback_button(label="Закрыть", color=VkKeyboardColor.NEGATIVE, payload={"type": "quit"})
+        for key in keys_struct:
+            keyboard.add_callback_button(label=key['label'], color=key['color'], payload={"type": key['_type']})
+            if keys_struct.index(key) + 1 != len(keys_struct):
+                keyboard.add_line()
 
-        #возвращаем созданный объект
         return keyboard
 
-    def aux_keys(self):
+    def additional_key(self):
         # определяем тип кнопок для вспомогательного меню - возврат из списка избранных
         settings = dict(one_time=False, inline=True) 
         aux_keyboard = VkKeyboard(**settings) 
@@ -43,7 +65,7 @@ class VK_chat_keys:
 
         return aux_keyboard
 
-    def exit_keys(self):
+    def exit_key(self):
         # определяем тип кнопки - закрыть
         settings = dict(one_time=False, inline=True) 
         exit_keyboard = VkKeyboard(**settings) 

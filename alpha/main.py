@@ -18,6 +18,21 @@ from VK_bot_keyboard import *
 # импорт класса для взаимодествия с БД
 from work_bd import *
 
+# переменные для работы Бота
+# 
+# active_user - ID пользователя с которым Бот в настоящее время ведет беседу
+# в соответствии с логикой работы Бота одновременно он может беседовать только с одним пользователем
+# после начала беседы с пользователем, присваевается значени active_user
+active_user = ''
+
+# переменная current_id определяет значение ID записи в таблице VK_Partners 
+# для отображения в чате и последующей навагиции
+current_id = 1
+
+# переменаая partners_count принимает значение количества найденных пользователей
+# и используется в дальнейшем для навигации между партнерами
+partners_count = 0
+
 class VKBot:
     def __init__(self, vk_session, botLongpoll, longpoll):
         print("\nСоздан объект бота!")
@@ -27,6 +42,10 @@ class VKBot:
 
         self.vk_bot = self.vk.get_api()
         self.botLongpoll = botLongpoll  # РАБОТА С СООБЩЕНИЯМИ
+        self.active_user = ''
+        self.current_id = 1
+        self.partners_count = 0
+        self.msg_id = 0
 
 
     def get_user_id(self, event):
@@ -155,7 +174,7 @@ class VKBot:
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена (в методе find_city())', 'error')
 
-    def find_partners(self, user_id, msg_id):
+    def find_partners(self, user_id):
         """ПОИСК ЧЕЛОВЕКА ПО ПОЛУЧЕННЫМ ДАННЫМ"""
         #global city_name
         list_users_id = []
@@ -171,13 +190,15 @@ class VKBot:
         url = f'https://api.vk.com/method/users.search'
         params = {'access_token': get_VK_Settings_conf_value('user_token'),
                   'v': '5.199',
-                  'sex': sex,
+                  'sex': '1',
                   'age_from': age_low,
                   'age_to': age_high,
-                  'city': self.find_city(user_id),
+                'city': self.find_city(user_id),
+                #   'city': 1,
                   'fields': 'is_closed, id, first_name, last_name',
-                  'status': '1' or '6',
-                  'count': 500}
+                  'status': '6',
+                  'count': 1000
+                  }
         resp = requests.get(url, params=params)
         resp_json = resp.json()
         try:
@@ -190,13 +211,12 @@ class VKBot:
                     vk_id = str(person_dict.get('id'))
                     vk_link = 'vk.com/id' + str(person_dict.get('id'))
                     print(first_name)
-                    add_VK_Partners(first_name, last_name, vk_id, vk_link)  # вызов функции для занесения параметров в БД
+                    add_partner(first_name, last_name, vk_id, vk_link)  # вызов функции для занесения параметров в БД
 
             if list_1 == []:
-                msg_id = self.write_msg(user_id, 'Партнеров не найдено', 'error')
+                self.msg_id = self.write_msg(user_id, 'Партнеров не найдено', 'error')
             
-            print(msg_id)
-            return msg_id
+            return self.msg_id
         except KeyError:
             self.write_msg(user_id, 'Ошибка получения токена (в методе find_partners())', 'error')
 
@@ -227,7 +247,7 @@ class VKBot:
             self.write_msg(user_id, 'Ошибка получения токена (в методе get_photos_id())', 'error')
 
     # метод сохранения фотографий в БД        
-    def save_photo(self, msg_id):
+    def save_photo(self):
         # для каждой записи (партнеров) в таблице VK_Partners
         # вызываем метод get.photos_id, если количество фотографий, возвращенных методом, больше или равно 3 шт,
         # то выполняем только запись 3 шт, если меньше 3 шт, то записываем все что есть
@@ -237,118 +257,132 @@ class VKBot:
             all_partners_photos = self.get_photos_id(partner_id)
             if len(all_partners_photos) >= 3:
                 for j in range(3):
-                    add_VK_Photos(partner_id, f'photo{partner_id[0]}_{all_partners_photos[j][1]}')
+                    add_photo(partner_id, f'photo{partner_id[0]}_{all_partners_photos[j][1]}')
             else:
                 for j in range(len(all_partners_photos)):
-                    add_VK_Photos(partner_id, f'photo{partner_id[0]}_{all_partners_photos[j][1]}')
+                    add_photo(partner_id, f'photo{partner_id[0]}_{all_partners_photos[j][1]}')
             # вывод значений прогресса сохранения фотографий в БД в чат 
             # чтобы исключить ошибку vk_api.exceptions.ApiError: [9] Flood control: too much messages sent to user
             # бот отправляет сообщение о прогрессе 1 раз в 10 пользователей (значение i цикла for)
             if (i+1) % 10 == 0:
                 progress = float('{:.1f}'.format(share * i))
-                bot.write_msg(active_user, f'Бот собирает фотографии пользователей, это может занять несколько больше секунд...\n Выполнено {progress}%', 'edit', False, msg_id)
+                self.write_msg(self.active_user, f'Бот собирает фотографии пользователей, это может занять несколько больше секунд...\n Выполнено {progress}%', 'edit', False)
         # по окончанию выводим финальное значение 100%
-        bot.write_msg(active_user, f'Бот собирает фотографии пользователей, это может занять несколько больше секунд...\n Выполнено 100.0%', 'edit', False, msg_id)
+        self.write_msg(self.active_user, f'Бот собирает фотографии пользователей, это может занять несколько больше секунд...\n Выполнено 100.0%', 'edit', False)
                 
 
     # метод формирования "базового ответа" в чате - представление результатов работы Бота
-    def chat_respond(self, user_id, msg_id, msg_type, partner_id):
+    def chat_respond(self, user_id, msg_type, partner_id):
             partner_info = f'Вот что нашел Бот (пользователей - {select_count_partners()}): \n\n  {select_partner_fn_ln_link(partner_id)}'
-            self.write_msg(user_id, partner_info, msg_type, True, msg_id, get_photo(partner_id))
+            self.write_msg(user_id, partner_info, msg_type, True, get_photo(partner_id))
 
 
     # метод работы с исходящими от Бота сообщениями
     # метод может выполнять как отправку новых сообщений, так и редактировать существующие
     # также в метод включен "базовый" ответ на запрос "Показать избранных"              
-    def write_msg(self, user_id, message, msg_type='send', keys=False, msg_id=None, attachment=None):
+    def write_msg(self, user_id, message, msg_type='send', keys=False, attachment=None):
         """МЕТОД ДЛЯ ОТПРАВКИ СООБЩЕНИЙ"""
-        # тип сообщения - отправка нового сообщения
-        if msg_type == 'send':
-            # проверка на необходимость клавиатуры в сообщении
-            if keys: 
-                last_id = self.vk_bot.messages.send(
-                    user_id=user_id,
-                    random_id=get_random_id(),
-                    peer_id=user_id,
-                    attachment=attachment,
-                    keyboard=vk_keys.keyboard().get_keyboard(),
-                    message=message)
-                return last_id
-            else:
-                last_id = self.vk_bot.messages.send(
-                    user_id=user_id,
-                    random_id=get_random_id(),
-                    peer_id=user_id,
-                    attachment=attachment,
-                    message=message)
-                return last_id
-        # тип сообщения - редактирование существующего сообщения
-        elif msg_type == 'edit':
-            # проверка на необходимость клавиатуры в сообщении
-            if keys:
-                self.vk_bot.messages.edit(
-                    peer_id=user_id,
-                    message=message,
-                    message_id=msg_id,
-                    attachment=attachment,
-                    keyboard=vk_keys.keyboard().get_keyboard()
-                    )
-            else:
-                self.vk_bot.messages.edit(
-                    peer_id=user_id,
-                    message=message,
-                    message_id=msg_id,
-                    attachment=attachment
-                    )
-        # тип сообщения - ошибка
-        elif msg_type == 'error':
-            msg_id = self.vk_bot.messages.send(
-                user_id=user_id,
-                random_id=get_random_id(),
-                peer_id=user_id,
-                message=message                
-                )
-            return msg_id
-        # тип сообщения - выход
-        elif msg_type == 'exit':
-            self.vk_bot.messages.edit(
-                peer_id=user_id,
-                message=message,
-                message_id=msg_id,
-                keyboard=vk_keys.exit_keys().get_keyboard()
-                )
         
-        # тип сообщения - показать список избранных
-        elif msg_type == 'show_favorite':
-            # выборка информации о партнерах из числа добавленных в избранное
-            for id in range(select_count_partners()):
-                if check_favorite_partner(select_partner_id(id+1))[0]:
-                    message += f'\n{select_partner_fn_ln_link(select_partner_id(id+1))}'
 
+        # в соответствии с документацией VK API не допускается отправка сообщений со стороны бота с частотой более
+        # 1000 сообщений в час (1 сообщение в 3,6 секунды),
+        # чтобы исключить ошибку vk_api.exceptions.ApiError: [9] Flood control: too much messages sent to user
+        # все сообщения отправляются с задержкой в 2 секунды
+        timer = 2
+        time.sleep(timer)
+
+        try: 
+        # тип сообщения - отправка нового сообщения
+            if msg_type == 'send':
+                # проверка на необходимость клавиатуры в сообщении
+                if keys: 
+                    self.msg_id = self.vk_bot.messages.send(
+                        user_id=user_id,
+                        random_id=get_random_id(),
+                        peer_id=user_id,
+                        attachment=attachment,
+                        keyboard=vk_keys.keyboard().get_keyboard(),
+                        message=message)
+                    return self.msg_id
+                else:
+                    self.msg_id = self.vk_bot.messages.send(
+                        user_id=user_id,
+                        random_id=get_random_id(),
+                        peer_id=user_id,
+                        attachment=attachment,
+                        message=message)
+                    return self.msg_id
+            # тип сообщения - редактирование существующего сообщения
+            elif msg_type == 'edit':
+                # проверка на необходимость клавиатуры в сообщении
+                if keys:
+                    self.vk_bot.messages.edit(
+                        peer_id=user_id,
+                        message=message,
+                        message_id=self.msg_id,
+                        attachment=attachment,
+                        keyboard=vk_keys.keyboard().get_keyboard()
+                        )
+                else:
+                    self.vk_bot.messages.edit(
+                        peer_id=user_id,
+                        message=message,
+                        message_id=self.msg_id,
+                        attachment=attachment
+                        )
+            # тип сообщения - ошибка
+            elif msg_type == 'error':
+                self.msg_id= self.vk_bot.messages.send(
+                    user_id=user_id,
+                    random_id=get_random_id(),
+                    peer_id=user_id,
+                    message=message                
+                    )
+                return self.msg_id
+            # тип сообщения - выход
+            elif msg_type == 'exit':
+                self.vk_bot.messages.edit(
+                    peer_id=user_id,
+                    message=message,
+                    message_id=self.msg_id,
+                    keyboard=vk_keys.exit_key().get_keyboard()
+                    )
             
-            self.vk_bot.messages.edit(
-                peer_id=user_id,
-                message=message,
-                message_id=msg_id,
-                keyboard=vk_keys.aux_keys().get_keyboard()
-                )
+            # тип сообщения - показать список избранных
+            elif msg_type == 'show_favorite':
+                # выборка информации о партнерах из числа добавленных в избранное
+                for id in range(select_count_partners()):
+                    if check_favorite_partner(select_partner_id(id+1))[0]:
+                        message += f'\n{select_partner_fn_ln_link(select_partner_id(id+1))}'
+
+                
+                self.vk_bot.messages.edit(
+                    peer_id=user_id,
+                    message=message,
+                    message_id=self.msg_id,
+                    keyboard=vk_keys.additional_key().get_keyboard()
+                    )
+
+        except:
+            pass
 
     # счетчик значения ID записи в таблице VK_Partners при 
     # осуществлениии навигации среди результатов поиска партнеров
     # в чате ("Следующий пользователь", "Предыдущий пользователь")
     # 
-    # принимает значение текущего ID и направление отсчета ("Forward", "Backward")
+    # принимает значение текущего ID, направление отсчета ("Forward", "Backward")
+    # и количество найденных пользователй (партнеров)
     # возвращает ID следующего пользователя
     def id_calculator(self, id, type_):
         
         if type_ == 'forward':
-            if id == select_count_partners():
+            if id == self.partners_count:
                 next_id = 1
             else:
                 next_id = id + 1
         elif type_ == 'backward':
             if id == 1:
-                next_id = select_count_partners()
+                next_id = self.partners_count
             else:
                 next_id = id - 1
         else:
@@ -361,6 +395,114 @@ class VKBot:
         elif next_id != None :
             return next_id
 
+
+    def new_message_handler(self, event):
+        if event.obj.message['text'] != '':
+            if self.get_user_id(event) != None:
+                # если с Ботом еще никто не начал беседу
+                if self.active_user == '':
+                    # присвоить значение active_user
+                    self.active_user = self.get_user_id(event)
+
+                    # поиск и запись подходящих партнеров в БД
+                    self.msg_id = self.write_msg(self.active_user, 'Бот ищет подходящих пользователей, это может занять несколько секунд...', 'send')
+                    self.msg_id = self.find_partners(self.active_user)
+
+                    # если найдены партнеры
+                    if select_count_partners() != 0:
+
+                        # поиск и запись фотографий партнеров в БД
+                        self.msg_id = self.write_msg(self.active_user, 'Бот собирает фотографии пользователей, это может занять несколько больше секунд...\n Выполнено 0.0%', 'send')
+                        self.save_photo()
+
+                        # сообщение о том, что Бот закончил поиск необходима для определения ID (self.msg_id) последнего сообщения
+                        # в псоледующем никаких новых сообщений Бот отправлять не будет - только редактирования сообщения с ID
+                        self.msg_id = self.write_msg(self.active_user, 'Бот закончил поиски.', 'send')
+                            
+                        self.partners_count = select_count_partners()
+
+                        self.chat_respond(self.active_user, 'edit', select_partner_id(current_id))
+
+
+                    # если ни одного подходящего партнера не найдено, то вывести сообщение с кнопкой "Закрыть"
+                    else:
+                        self.write_msg(self.active_user, 'Пользователей с указанными параметрами не найдено.', 'exit', True)
+                        
+                # если с Ботом уже кто-то беседует
+                if self.active_user != '':
+                    # если к Боту образщается пользователь с user_id отличным от acive_user
+                    if self.active_user != self.get_user_id(event):
+                        # направляем стандартный ответ
+                        self.write_msg(self.get_user_id(event), 'Ваше обращение очень важно для нас, к сожалению, все Боты заняты, попробуйте написать позже.', 'send', False)
+
+    def chat_event_handler(self, event):
+            
+            # если событие - нажатие кнопки "Следующий пользователь"
+            if event.object.payload.get('type') == 'forward':
+                    
+                # присваеваем следующее значение current_id через метод id_calculator()
+                self.current_id = self.id_calculator(self.current_id, event.object.payload.get('type'))
+                    
+                # вызов "базового ответа" Бота со следующим current_id партнера (ID таблицы VK_partners)
+                self.chat_respond(self.active_user, 'edit', select_partner_id(self.current_id))
+
+            # если событие - нажатие кнопки "Предыдущий пользователь"
+            elif event.object.payload.get('type') == 'backward':
+
+                # присваеваем следующее значение current_id через метод id_calculator()
+                self.current_id = self.id_calculator(self.current_id, event.object.payload.get('type'))
+                    
+                # вызов "базового ответа" Бота со следующим current_id партнера (ID таблицы VK_partners)
+                self.chat_respond(self.active_user, 'edit', select_partner_id(self.current_id))
+
+            # если событие - нажатие кнопки "Добавить в избранное"
+            elif event.object.payload.get('type') == 'like':
+                # если партнер не в списке избранного
+                if not check_favorite_partner(select_partner_id(self.current_id))[0]:
+                    # устанавливаем значение True в поле 'favorite' для партнера
+                    add_favorite_partner(select_partner_id(self.current_id))
+                        
+                    # вызываем pop-up уведомление о том, что партнер добавлен в избранное
+                    vk_keys.pop_up(self.active_user, event.object.event_id, 'Добавлено в избранное')
+                # если партнер в списке избранного
+                else:
+
+                    # вызываем pop-up уведомление о том, что партнер УЖЕ добавлен в избранное
+                    vk_keys.pop_up(self.active_user, event.object.event_id, 'Уже в избранных!')
+                    
+            # если событие - нажатие кнопки "Добавить в черный список"
+            elif event.object.payload.get('type') == 'ban':
+                # устанавливаем значение True в поле 'ban' для партнера
+                add_ban_partner(select_partner_id(self.current_id))  
+                    
+                # выводим информацию о том. что партнер добавлен в избранное
+                self.write_msg(self.active_user, f'Пользователь {select_partner_fn_ln_link(select_partner_id(current_id))} отправлен в бан. \n\n Надо двигаться дальше', 'edit', True)
+                    
+            # если событие - нажатие кнопки "Показать избранных"
+            elif event.object.payload.get('type') == 'show_favorite':
+
+                # выводим список избранных                
+                self.write_msg(self.active_user, 'Список избранных:', 'show_favorite', False)
+
+            # если событие - нажатие кнопки "Вернуться к поиску партнеров" - события выхода из показа спика избранных
+            elif event.object.payload.get('type') == 'return':
+                # вызов "базового ответа" Бота
+                self.chat_respond(self.active_user, 'edit', select_partner_id(self.current_id))
+
+            # если событие - нажатие кнопки "Закрыть" (закончить диалог с Ботом)
+            elif event.object.payload.get('type') == 'quit':                               
+                # выводим информацию о том, как начать диалог с Ботом заново
+                self.write_msg(self.active_user, 'Для начала работы Бота, обратитесь к нему: "О Великий разум!"', 'edit', False)
+
+                # устанавливаем базовые значения переменных
+                self.active_user = ''
+                self.current_id = 1
+
+                # сбрасываем таблицы
+                drop_create_table()
+
+
+
 # метод для первичной настройки работы Бота
 def bot_app_init():
 
@@ -371,9 +513,9 @@ def bot_app_init():
         del_VK_Settings_conf_value('comm_token')
         del_VK_Settings_conf_value('user_token')
 
-        add_VK_Settings('group_id', input('Введите ID сообщества - '))
-        add_VK_Settings('comm_token', input('Введите токен группы - '))
-        add_VK_Settings('user_token', input('Введите токен пользователя - '))
+        add_conf('group_id', input('Введите ID сообщества - '))
+        add_conf('comm_token', input('Введите токен группы - '))
+        add_conf('user_token', input('Введите токен пользователя - '))
     
     elif cmd == 'n' or cmd == 'N':
         print('ОК')
@@ -382,8 +524,6 @@ def bot_app_init():
         print('Ошибка ввода...')
         return bot_app_init()
 
-
-
     
 if __name__ == '__main__':
 
@@ -391,11 +531,10 @@ if __name__ == '__main__':
     get_password()
     
     # очитска таблиц
-    drop_create_table()
+    # drop_create_table()
      
     # запрос данных для работы с VK API
     bot_app_init()
-
 
     # создание сессии и начало работы с API
     vk_session = VkApi(token=get_VK_Settings_conf_value('comm_token'))
@@ -406,17 +545,6 @@ if __name__ == '__main__':
     # создание объекта класса для работы с клавиатурой
     vk_keys = VK_chat_keys(vk_session, vk, botLongpoll)
 
-    # переменные для работы Бота
-    # 
-    # active_user - ID пользователя с которым Бот в настоящее время ведет беседу
-    # в соответствии с логикой работы Бота одновременно он может беседовать только с одним пользователем
-    # после начала беседы с пользователем, присваевается значени active_user
-    active_user = ''
-
-    # переменная current_id определяет значение ID записи в таблице VK_Partners 
-    # для отображения в чате и последующей навагиции
-    current_id = 1
-    
     # создание объекта класса VKBot
     bot = VKBot(vk_session, botLongpoll, longpoll)
 
@@ -425,107 +553,13 @@ if __name__ == '__main__':
         
         # если событие является новым сообщением от пользователя
         if event.type == VkBotEventType.MESSAGE_NEW:
-            if event.obj.message['text'] != '':
-                if bot.get_user_id(event) != None:
-                    # если с Ботом еще никто не начал беседу
-                    if active_user == '':
-                        # присвоить значение active_user
-                        active_user = bot.get_user_id(event)
-
-                        # поиск и запись подходящих партнеров в БД
-                        msg_id = bot.write_msg(active_user, 'Бот ищет подходящих пользователей, это может занять несколько секунд...', 'send')
-                        msg_id = bot.find_partners(active_user, msg_id)
-
-                        # если найдены партнеры
-                        if select_count_partners() != 0:
-
-                            # поиск и запись фотографий партнеров в БД
-                            msg_id = bot.write_msg(active_user, 'Бот собирает фотографии пользователей, это может занять несколько больше секунд...\n Выполнено 0.0%', 'send')
-                            bot.save_photo(msg_id)
-
-                            # сообщение о том, что Бот закончил поиск необходима для определения ID (msg_id) последнего сообщения
-                            # в псоледующем никаких новых сообщений Бот отправлять не будет - только редактирования сообщения с ID
-                            msg_id = bot.write_msg(active_user, 'Бот закончил поиски.', 'send')
-                            bot.chat_respond(active_user, msg_id, 'edit', select_partner_id(current_id))
-
-
-                        # если ни одного подходящего партнера не найдено, то вывести сообщение с кнопкой "Закрыть"
-                        else:
-                            bot.write_msg(active_user, 'Пользователей с указанными параметрами не найдено.', 'exit', True, msg_id)
-                        
-                    # если с Ботом уже кто-то беседует
-                    if active_user != '':
-                        # если к Боту образщается пользователь с user_id отличным от acive_user
-                        if active_user != bot.get_user_id(event):
-                            # направляем стандартный ответ
-                            bot.write_msg(bot.get_user_id(event), 'Ваше обращение очень важно для нас, к сожалению, все Боты заняты, попробуйте написать позже.', 'send', False)
+            # вызываем обработчик новых сообщений
+            bot.new_message_handler(event)
 
         # если событие явлется событием чата
         elif event.type == VkBotEventType.MESSAGE_EVENT:
-            
-            # если событие - нажатие кнопки "Следующий пользователь"
-            if event.object.payload.get('type') == 'forward':
-                
-                # присваеваем следующее значение current_id через метод id_calculator()
-                current_id = bot.id_calculator(current_id, event.object.payload.get('type'))
-                
-                # вызов "базового ответа" Бота со следующим current_id партнера (ID таблицы VK_partners)
-                bot.chat_respond(active_user, msg_id, 'edit', select_partner_id(current_id))
-
-            # если событие - нажатие кнопки "Предыдущий пользователь"
-            elif event.object.payload.get('type') == 'backward':
-
-                # присваеваем следующее значение current_id через метод id_calculator()
-                current_id = bot.id_calculator(current_id, event.object.payload.get('type'))
-                
-                # вызов "базового ответа" Бота со следующим current_id партнера (ID таблицы VK_partners)
-                bot.chat_respond(active_user, msg_id, 'edit', select_partner_id(current_id))
-
-            # если событие - нажатие кнопки "Добавить в избранное"
-            elif event.object.payload.get('type') == 'like':
-                # если партнер не в списке избранного
-                if not check_favorite_partner(select_partner_id(current_id))[0]:
-                    # устанавливаем значение True в поле 'favorite' для партнера
-                    add_favorite_partner(select_partner_id(current_id))
-                    
-                    # вызываем pop-up уведомление о том, что партнер добавлен в избранное
-                    vk_keys.pop_up(active_user, event.object.event_id, 'Добавлено в избранное')
-                # если партнер в списке избранного
-                else:
-
-                    # вызываем pop-up уведомление о том, что партнер УЖЕ добавлен в избранное
-                    vk_keys.pop_up(active_user, event.object.event_id, 'Уже в избранных!')
-                
-            # если событие - нажатие кнопки "Добавить в черный список"
-            elif event.object.payload.get('type') == 'ban':
-                # устанавливаем значение True в поле 'ban' для партнера
-                add_ban_partner(select_partner_id(current_id))  
-                
-                # выводим информацию о том. что партнер добавлен в избранное
-                bot.write_msg(active_user, f'Пользователь {select_partner_fn_ln_link(select_partner_id(current_id))} отправлен в бан. \n\n Надо двигаться дальше', 'edit', True, msg_id)
-                
-            # если событие - нажатие кнопки "Показать избранных"
-            elif event.object.payload.get('type') == 'show_favorite':
-
-                # выводим список избранных                
-                bot.write_msg(active_user, 'Список избранных:', 'show_favorite', False, msg_id)
-
-            # если событие - нажатие кнопки "Вернуться к поиску партнеров" - события выхода из показа спика избранных
-            elif event.object.payload.get('type') == 'return':
-                # вызов "базового ответа" Бота
-                bot.chat_respond(active_user, msg_id, 'edit', select_partner_id(current_id))
-
-            # если событие - нажатие кнопки "Закрыть" (закончить диалог с Ботом)
-            elif event.object.payload.get('type') == 'quit':                               
-                # выводим информацию о том, как начать диалог с Ботом заново
-                bot.write_msg(active_user, 'Для начала работы Бота, обратитесь к нему: "О Великий разум!"', 'edit', False, msg_id)
-
-                # устанавливаем базовые значения переменных
-                active_user = ''
-                current_id = 1
-
-                # сбрасываем таблицы
-                drop_create_table()
+            # вызываем обработчик событий чата
+            bot.chat_event_handler(event)
 
 
                 
