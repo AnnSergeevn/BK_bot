@@ -14,5 +14,5 @@
 1. Заменено название функций `add_VK_Partners`, `add_VK_Photos` и `add_VK_Settings` на `add_partner`, `add_photo` и `add_conf` соответственно
 2. Изменены название методов класса `VK_keys` (`aux_keys` -> `additional_key`, `exit_keys`->`exit_key`)
 3. Изменен метод `keyboard` класса `VK_keys` - добавлен кортеж словарей `keys_struct({...},...)` и цикл для добавления кнопок клавиатуры
-4. Изменен метод `id_calculator` с исключением из него вызова функции `select_count_partners()`; количество записей в таблице БД определяется один раз и заносится в переменную `partners_count`, и передается в качестве аргумента в `id_calculator`
+4. Изменен метод `id_calculator` с исключением из него вызова функции `select_count_partners()`; количество записей в таблице БД определяется один раз и заносится в переменную `partners_count`
 5. Обработка событий `botLongpoll.listen()` перенесены в методы `new_message_handler(event)` и `chat_event_handler(event)` класса `VKbot`
