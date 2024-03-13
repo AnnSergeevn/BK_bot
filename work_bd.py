@@ -18,9 +18,8 @@ def drop_create_table():
     with psycopg2.connect(database=get_password()[1], user=get_password()[2], password=get_password()[0]) as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                DROP TABLE IF EXISTS VK_Partners;
-                DROP TABLE IF EXISTS VK_Photos;
-                
+                DROP TABLE IF EXISTS VK_Partners CASCADE;
+
                 """)
             conn.commit()
 
@@ -29,7 +28,7 @@ def drop_create_table():
                     id SERIAL PRIMARY KEY,
                     first_name VARCHAR(100) NOT NULL,
                     last_name VARCHAR(100),
-                    partner_id VARCHAR(20) NOT NULL,
+                    partner_id VARCHAR(20) UNIQUE NOT NULL,
                     partner_link VARCHAR(100) NOT NULL,
                     favorite BOOLEAN NOT NULL DEFAULT False,
                     ban BOOLEAN NOT NULL DEFAULT False);
@@ -39,7 +38,7 @@ def drop_create_table():
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS VK_Photos (
                     id SERIAL PRIMARY KEY,
-                    partner_id VARCHAR(20) NOT NULL,
+                    partner_id VARCHAR(20) NOT NULL REFERENCES VK_Partners(partner_id),
                     photo_link VARCHAR(100) NOT NULL);
                 """)
             conn.commit()
@@ -55,7 +54,7 @@ def drop_create_table():
 
 # 2.Функция добавления партнеров в таблицу VK_Partners
 # Запись данных по каждому партнеру first_name, last_name, partner_id, partner_link
-def add_VK_Partners(first_name, last_name, partner_id, partner_link):
+def add_partner(first_name, last_name, partner_id, partner_link):
     with psycopg2.connect(database=get_password()[1], user=get_password()[2], password=get_password()[0]) as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -70,7 +69,7 @@ def add_VK_Partners(first_name, last_name, partner_id, partner_link):
 
 
 # 3.Функция добавления фото в таблицу VK_Partners
-def add_VK_Photos(partner_id, photo_link):
+def add_photo(partner_id, photo_link):
     with psycopg2.connect(database=get_password()[1], user=get_password()[2], password=get_password()[0]) as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -233,7 +232,7 @@ def get_photo(partner_id):
     # 13.Функция добавления conf_name, conf_value в таблицу VK_Settings
 
 
-def add_VK_Settings(conf_name, conf_value):
+def add_conf(conf_name, conf_value):
     with psycopg2.connect(database=get_password()[1], user=get_password()[2], password=get_password()[0]) as conn:
         with conn.cursor() as cur:
             cur.execute("""
