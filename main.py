@@ -190,7 +190,7 @@ class VKBot:
         url = f'https://api.vk.com/method/users.search'
         params = {'access_token': get_VK_Settings_conf_value('user_token'),
                   'v': '5.199',
-                  'sex': '1',
+                  'sex': sex,
                   'age_from': age_low,
                   'age_to': age_high,
                   'city': self.find_city(user_id),
