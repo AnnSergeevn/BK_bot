@@ -538,7 +538,7 @@ if __name__ == '__main__':
     get_password()
 
     # очитска таблиц
-    # drop_create_table()
+    drop_create_table()
 
     # запрос данных для работы с VK API
     bot_app_init()
