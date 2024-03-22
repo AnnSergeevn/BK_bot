@@ -534,9 +534,6 @@ def bot_app_init():
 
 if __name__ == '__main__':
 
-    # работа с БД
-    get_password()
-
     # очитска таблиц
     drop_create_table()
 
